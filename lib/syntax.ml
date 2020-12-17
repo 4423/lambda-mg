@@ -12,6 +12,7 @@ type var = string
    | LetModE of var * mod_term * core_term
    | IfE     of core_term * core_term * core_term
    | IntE    of int
+   | StrE    of string
    | BoolE   of bool
    | AddE    of core_term * core_term
    | SubE    of core_term * core_term

@@ -88,6 +88,9 @@ and pp_core_term: core_term -> string = function
     failwith "[error] ``run_module`` should not appear in pp_core_term"
   | IntE n0 ->
     string_of_int n0
+  | StrE s0 ->
+    Printf.sprintf "\"%s\""
+      s0
   | BoolE b0 ->
     string_of_bool b0
   | AddE (e0, e1) ->

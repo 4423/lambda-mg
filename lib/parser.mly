@@ -1,30 +1,10 @@
 %{
-(*
- * Copyright (c) 2017 Takahisa Watanabe <takahisa@logic.cs.tsukuba.ac.jp> All rights reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *)
 open Syntax
 %}
 %token <string> VAR      // "<identifier>"
 %token <string> CON      // "<identifier>"
 %token <int>    INT      // "<integer>"
+%token <string> STR      // "<string>"
 %token ADD               // "+"
 %token SUB               // "-"
 %token MUL               // "*"
@@ -95,7 +75,7 @@ open Syntax
 %left ADD SUB
 %left MUL DIV
 %nonassoc UNARY
-%left VAR INT TRUE FALSE UNIT LBRACE LBRACKET LPAREN ESC RUN RUNMOD LCOD CODE DOLLAR LMCOD MCOD CON NOT NEG
+%left VAR INT STR TRUE FALSE UNIT LBRACE LBRACKET LPAREN ESC RUN RUNMOD LCOD CODE DOLLAR LMCOD MCOD CON NOT NEG
 
 %type <Syntax.mod_decl list * Syntax.toplevel list> main
 %type <Syntax.core_term> core_term
@@ -224,6 +204,8 @@ simple_term
     { VarE $1 }
   | INT
     { IntE $1 }
+  | STR
+    { StrE $1 }
   | TRUE
     { BoolE true }
   | FALSE

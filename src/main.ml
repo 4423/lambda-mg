@@ -1,12 +1,21 @@
 exception Quit of int
+exception Error of string
 
 let parse lexbuf =
   Parser.main Lexer.token lexbuf
 
 let parse_file filepath =
   let ichannel = open_in filepath in
-  try parse (Lexing.from_channel ichannel) with
-  | e -> close_in ichannel; raise e
+  let lexbuf = Lexing.from_channel ichannel in
+  try parse lexbuf with
+  | Parsing.Parse_error ->
+      close_in ichannel;
+      let s = Printf.sprintf "Syntax error at char %d" (Lexing.lexeme_start lexbuf) in
+      raise(Error s)
+  | Lexer.Lexical_error msg ->
+      close_in ichannel;
+      let s = Printf.sprintf "Lexical error: %s, around character %d" msg (Lexing.lexeme_start lexbuf) in
+      raise(Error s)
 
 let usage () =
   Printf.sprintf "usage: %s [<option>] <file0> <file1> ...\n" (Sys.argv.(0))

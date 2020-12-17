@@ -19,6 +19,7 @@ and term0 env d = function
   | E0.AccE (E0.VarP x0, x1)          -> E0.(AccE (VarP x0, x1))
   | E0.AccE (E0.DollarP x0, x1)       -> E0.(AccE (VarP (List.assoc x0 env), x1)) 
   | E0.IntE n0                        -> E0.IntE n0
+  | E0.StrE s0                        -> E0.StrE s0
   | E0.BoolE b0                       -> E0.BoolE b0
   | E0.LetE (x0, xs0, ys0, e0, e1)    -> E0.LetE (x0, xs0, ys0, term0 env d e0, term0 env d e1)
   | E0.LetRecE (x0, xs0, ys0, e0, e1) -> E0.LetRecE (x0, xs0, ys0, term0 env d e0, term0 env d e1)
@@ -72,6 +73,7 @@ and term1 env d = function
   | E1.AccE (E1.VarP x0, x1)          -> if List.mem x0 d then E1.EscE E0.(AccE (VarP x0, x1))
                                          else E1.(AccE (VarP x0, x1))
   | E1.IntE n0                        -> E1.IntE n0
+  | E1.StrE s0                        -> E1.StrE s0
   | E1.BoolE b0                       -> E1.BoolE b0
   | E1.LetE (x0, xs0, ys0, e0, e1)    -> E1.LetE (x0, xs0, ys0, term1 env d e0, term1 env d e1)
   | E1.LetRecE (x0, xs0, ys0, e0, e1) -> E1.LetRecE (x0, xs0, ys0, term1 env d e0, term1 env d e1)

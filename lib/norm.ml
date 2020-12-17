@@ -48,6 +48,7 @@ and E0: sig
     | AppE    of core_term * core_term
     | IfE     of core_term * core_term * core_term
     | IntE    of int
+    | StrE    of string
     | BoolE   of bool
     | NotE    of core_term
     | NegE    of core_term
@@ -101,6 +102,7 @@ and E1: sig
     | AppE    of core_term * core_term
     | IfE     of core_term * core_term * core_term
 		| IntE    of int
+    | StrE    of string
     | BoolE   of bool
     | NotE    of core_term
     | NegE    of core_term
@@ -183,6 +185,7 @@ and norm_e0 env = function
 
   | Syntax.VarE x0                        -> E0.VarE x0
   | Syntax.IntE n0                        -> E0.IntE n0
+  | Syntax.StrE s0                        -> E0.StrE s0
   | Syntax.BoolE b0                       -> E0.BoolE b0
   | Syntax.LetE (x0, xs0, ys0, e0, e1)    -> E0.LetE (x0, xs0, ys0, norm_e0 env e0, norm_e0 env e1)
   | Syntax.LetRecE (x0, xs0, ys0, e0, e1) -> E0.LetRecE (x0, xs0, ys0, norm_e0 env e0, norm_e0 env e1)
@@ -223,6 +226,7 @@ and norm_e1 env = function
 
   | Syntax.VarE x0                        -> E1.VarE x0
   | Syntax.IntE n0                        -> E1.IntE n0
+  | Syntax.StrE s0                        -> E1.StrE s0
   | Syntax.BoolE b0                       -> E1.BoolE b0
   | Syntax.LetE (x0, xs0, ys0, e0, e1)    -> E1.LetE (x0, xs0, ys0, norm_e1 env e0, norm_e1 env e1)
   | Syntax.LetRecE (x0, xs0, ys0, e0, e1) -> E1.LetRecE (x0, xs0, ys0, norm_e1 env e0, norm_e1 env e1)
@@ -342,6 +346,7 @@ and denorm_e0 = function
   | E0.AccE (E0.DollarP x0, x1)       -> failwith "[error] ``dollar`` should not appear in denorm"
   | E0.VarE x0                        -> Syntax.VarE x0
   | E0.IntE n0                        -> Syntax.IntE n0
+  | E0.StrE s0                        -> Syntax.StrE s0
   | E0.BoolE b0                       -> Syntax.BoolE b0
   | E0.LetE (x0, xs0, ys0, e0, e1)    -> Syntax.LetE (x0, xs0, ys0, denorm_e0 e0, denorm_e0 e1)
   | E0.LetRecE (x0, xs0, ys0, e0, e1) -> Syntax.LetRecE (x0, xs0, ys0, denorm_e0 e0, denorm_e0 e1)
@@ -375,6 +380,7 @@ and denorm_e1 = function
   | E1.AccE (E1.VarP x0, x1)          -> Syntax.AccE (Syntax.VarP x0, x1)
   | E1.VarE x0                        -> Syntax.VarE x0
   | E1.IntE n0                        -> Syntax.IntE n0
+  | E1.StrE s0                        -> Syntax.StrE s0
   | E1.BoolE b0                       -> Syntax.BoolE b0
   | E1.LetE (x0, xs0, ys0, e0, e1)    -> Syntax.LetE (x0, xs0, ys0, denorm_e1 e0, denorm_e1 e1)
   | E1.LetRecE (x0, xs0, ys0, e0, e1) -> Syntax.LetRecE (x0, xs0, ys0, denorm_e1 e0, denorm_e1 e1)
