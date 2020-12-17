@@ -10,7 +10,7 @@ module type S = sig
   val observe: (unit_t -> int_t) -> obs_t
 end
 
-let arith = .<(module struct
+let arith = .<<(module struct
   type int_t = int
   type obs_t = int
   type unit_t = int
@@ -20,11 +20,11 @@ let arith = .<(module struct
   let mul = fun n1 -> fun n2 -> n1 * n2
   let div = fun n1 -> fun n2 -> n1 / n2
   let observe = fun f -> f 0
-end: S with type obs_t = int)>.
+end: S with type obs_t = int)>>.
 ;;
 
-let suppressAddZeroOrMulZeroPE = fun (m: (module S with type obs_t = int) code) ->
-  .<(module struct
+let suppressAddZeroOrMulZeroPE = fun (m: (module S with type obs_t = int) mcod) ->
+  .<<(module struct
       type int_t = $m.int_t * bool
       type obs_t = int
       type unit_t = int
@@ -43,7 +43,7 @@ let suppressAddZeroOrMulZeroPE = fun (m: (module S with type obs_t = int) code) 
       let observe = fun f ->
         match f 0 with
           (n, _) -> .~($m.observe) (fun _ -> n)
-    end: S with type obs_t = int)>.
+    end: S with type obs_t = int)>>.
 ;;
 let rec fix depth m =
   if depth <= 0 then

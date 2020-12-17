@@ -79,6 +79,9 @@ open Syntax
 %token ESC               // ".~"
 %token RUN               // "Runcode.run"
 %token RUNMOD            // "run_module"
+%token MCOD              // "mcdo"
+%token LMCOD             // ".<<"
+%token RMCOD             // ">>."
 %token EOF
 %nonassoc IN ELSE
 %nonassoc WITH
@@ -92,7 +95,7 @@ open Syntax
 %left ADD SUB
 %left MUL DIV
 %nonassoc UNARY
-%left VAR INT TRUE FALSE UNIT LBRACE LBRACKET LPAREN ESC RUN RUNMOD LCOD CODE DOLLAR CON NOT NEG
+%left VAR INT TRUE FALSE UNIT LBRACE LBRACKET LPAREN ESC RUN RUNMOD LCOD CODE DOLLAR LMCOD MCOD CON NOT NEG
 
 %type <Syntax.mod_decl list * Syntax.toplevel list> main
 %type <Syntax.core_term> core_term
@@ -137,6 +140,8 @@ simple_type
     { $2 }
   | LPAREN MODULE mod_type RPAREN
     { ModT $3 }
+  | LPAREN MODULE mod_type RPAREN MCOD
+    { ModCodT $3 }
   | path DOT VAR
     { AccT ($1, $3) }
   | simple_type CODE
@@ -150,8 +155,6 @@ core_term
     { $1 }
   | core_term simple_term
     { AppE ($1, $2) }
-  | FUN LPAREN MODULE CON COL mod_type RPAREN SINGLE_ARROW core_term
-    { FunModE ($4, $6, $9) }
   | FUN VAR SINGLE_ARROW core_term
     { FunE ($2, None, $4) }  
   | FUN LPAREN VAR COL core_type RPAREN SINGLE_ARROW core_term
@@ -205,6 +208,8 @@ simple_term
     { $2 }
   | LPAREN MODULE mod_term COL mod_type RPAREN
     { ModE ($3, $5) }
+  | LMCOD LPAREN MODULE mod_term COL mod_type RPAREN RMCOD
+    { ModCodE ($4, $6) }
   | LCOD core_term RCOD
     { CodE $2 }
   | ESC simple_term

@@ -1,24 +1,3 @@
-(*
- * Copyright (c) 2017 Takahisa Watanabe <takahisa@logic.cs.tsukuba.ac.jp> All rights reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *)
 open Norm
 
 let insert_genlet e = E0.(AppE (VarE "genlet", e))
@@ -46,7 +25,6 @@ and term0 env d = function
   | E0.LetModE (x0, m0, e0)           -> E0.LetModE (x0, structure0 env d m0, term0 env d e0)
   | E0.FunE (x0, Some t0, e0)         -> E0.FunE (x0, Some (type0 env t0), term0 env d e0)
   | E0.FunE (x0, None, e0)            -> E0.FunE (x0, None, term0 env d e0)
-  | E0.FunModE (x0, s0, e0)           -> E0.FunModE (x0, signature0 env s0, term0 env d e0)
   | E0.AppE (e0, e1)                  -> E0.AppE (term0 env d e0, term0 env d e1)
   | E0.IfE (e0, e1, e2)               -> E0.IfE (term0 env d e0, term0 env d e1, term0 env d e2)
   | E0.NegE e0                        -> E0.NegE (term0 env d e0)
@@ -185,8 +163,6 @@ and structure1 env d = function
       end (Set.elements set) in
       let (_,_, cs0') = List.fold_left structure_component1 (d, bindings @ env, []) cs0 in
       E0.Structure (unpacked_mods @ List.rev cs0')
-  | E1.UnpackM (E1.ModE (m0, s0)) -> E0.(UnpackM (ModE (structure1 env d m0, signature1 env s0)))
-  | E1.UnpackM _                  -> failwith "[error] only module is only allowed to appear within unpack"
   | E1.VarM x0                    -> E0.VarM x0
 and structure_component1 (d, env, cs) = function
   | E1.TypeM (x0, Some t0)        -> (d, env, E0.TypeM (x0, Some (type1 env t0)) :: cs)
@@ -206,7 +182,6 @@ and dollar_structure_component = function
   | E1.LetRecM (_, _, _, e0)
   | E1.LetM (_, _, _, e0)         -> dollar_e1 e0
   | E1.ModM (_, E1.Structure cs0) -> dollar_structure cs0
-  | E1.ModM (_, E1.UnpackM e0)    -> dollar_e1 e0
   | _                             -> Set.empty
 and dollar_core_type = function
   | E.AccT (E.DollarP x0, _)  -> Set.singleton x0
@@ -225,7 +200,7 @@ and dollar_e0 = function
   | E0.EqE (e0, e1)  | E0.NeE (e0, e1)  | E0.GtE (e0, e1)  | E0.LeE (e0, e1) | E0.GtEqE (e0, e1) | E0.LeEqE (e0, e1)
   | E0.ConjE (e0, e1) | E0.DisjE (e0, e1) | E0.ConsE (e0, e1) | E0.PairE (e0, e1) 
     -> Set.union (dollar_e0 e0) (dollar_e0 e1)
-  | E0.FunE (_, _, e0) | E0.FunModE (_, _, e0)
+  | E0.FunE (_, _, e0)
   | E0.RunE e0 | E0.NotE e0 | E0.NegE e0
     -> dollar_e0 e0
   | E0.CodE e0  

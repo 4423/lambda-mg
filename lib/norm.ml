@@ -1,24 +1,3 @@
-(*
- * Copyright (c) 2017 Takahisa Watanabe <takahisa@logic.cs.tsukuba.ac.jp> All rights reserved.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *)
 module rec E: sig
   type var = string
   type toplevel =
@@ -61,7 +40,6 @@ and E0: sig
     | ModCodE of E1.mod_term * E.mod_type
     | RunModE of core_term * E.mod_type
     | LetModE of E.var * mod_term * core_term
-    | FunModE of E.var * E.mod_type * core_term
     | VarE    of E.var
     | AccE    of path * E.var
     | LetE    of E.var * E.var list * E.var list * core_term * core_term
@@ -145,7 +123,6 @@ and E1: sig
   and mod_term = 
     | VarM      of E.var
     | Structure of structure 
-    | UnpackM   of core_term
   and structure = structure_component list
   and structure_component =
     | TypeM     of E.var * E.core_type option
@@ -194,13 +171,12 @@ let rec f: (Syntax.mod_decl list * Syntax.toplevel list) -> (E.mod_decl list * E
     decl_list', toplevel_list'
 
 and norm_e0 env = function
-  | Syntax.CodE (Syntax.ModE (m0, s0))    -> E0.ModCodE (norm_structure1 env m0, norm_signature env s0)
+  | Syntax.ModCodE (m0, s0)               -> E0.ModCodE (norm_structure1 env m0, norm_signature env s0)
   | Syntax.CodE e0                        -> E0.CodE (norm_e1 env e0)
   | Syntax.RunE e0                        -> E0.RunE (norm_e0 env e0)
   | Syntax.ModE (m0, s0)                  -> E0.ModE (norm_structure0 env m0, norm_signature env s0)
   | Syntax.RunModE (e0, s0)               -> E0.RunModE (norm_e0 env e0, norm_signature env s0)
   | Syntax.LetModE (x0, m0, e0)           -> E0.LetModE (x0, norm_structure0 env m0, norm_e0 env e0)
-  | Syntax.FunModE (x0, s0, e0)           -> E0.FunModE (x0, norm_signature env s0, norm_e0 env e0)
   | Syntax.AccE (Syntax.VarP x0, x1)      -> E0.(AccE (VarP x0, x1))
   | Syntax.AccE (Syntax.DollarP x0, x1)   -> E0.(AccE (DollarP x0, x1))
   | Syntax.EscE _                         -> failwith "[error] ``<esc>`` is not allowed to appear at level-0 term"
@@ -236,12 +212,12 @@ and norm_e0 env = function
 
 and norm_e1 env = function
   | Syntax.EscE e0                        -> E1.EscE (norm_e0 env e0)
-  | Syntax.ModE (m0, s0)                  -> E1.ModE (norm_structure1 env m0, norm_signature env s0)
   | Syntax.AccE (Syntax.VarP x0, x1)      -> E1.(AccE (VarP x0, x1))
+  | Syntax.ModE _                         -> failwith "[error] ``module`` is not allowed to appear at level-1 term"
+  | Syntax.ModCodE _                      -> failwith "[error] ``module code`` is not allowed to appear at level-1 term"
   | Syntax.AccE (Syntax.DollarP _, _)     -> failwith "[error] ``dollar`` is not allowed to appear at level-1 term"
   | Syntax.RunModE _                      -> failwith "[error] ``run_module`` is not allowed to appear at level-1 term"
   | Syntax.LetModE _                      -> failwith "[error] ``let module`` is not allowed to appear at level-1 term"
-  | Syntax.FunModE _                      -> failwith "[error] ``functor`` is not allowed to appear at level-1 term"
   | Syntax.CodE _                         -> failwith "[error] ``code`` is not allowed to appear at level-1 term"
   | Syntax.RunE _                         -> failwith "[error] ``run`` is not allowed to appear at level-1 term"
 
@@ -281,18 +257,14 @@ and norm_type env = function
   | Syntax.ArrT (t0, t1)                -> E.ArrT (norm_type env t0, norm_type env t1)
   | Syntax.AppT (t0, t1)                -> E.AppT (norm_type env t0, norm_type env t1)
   | Syntax.PairT (t0, t1)               -> E.PairT (norm_type env t0, norm_type env t1)
-  | Syntax.CodT t0 -> begin
-      match norm_type env t0 with
-      | E.ModT s0 -> E.ModCodT s0
-      | t0'       -> E.CodT t0'
-    end
-  | Syntax.ModT s0 -> E.ModT (norm_signature env s0)
-  | Syntax.EscT t0 -> E.EscT (norm_type env t0)
+  | Syntax.CodT t0                      -> E.CodT (norm_type env t0)
+  | Syntax.ModT s0                      -> E.ModT (norm_signature env s0)
+  | Syntax.ModCodT s0                   -> E.ModCodT (norm_signature env s0)
+  | Syntax.EscT t0                      -> E.EscT (norm_type env t0)
 
 and norm_structure0 env = function
-  | Syntax.Structure cs0                  -> E0.Structure (List.map (norm_structure_component0 env) cs0)
-  | Syntax.UnpackM (Syntax.ModE (m0, s0)) -> E0.UnpackM (norm_e0 env (Syntax.ModE (m0, s0)))
-  | Syntax.UnpackM _                      -> failwith "[error] only module is only allowed to appear within unpack"
+  | Syntax.Structure cs0  -> E0.Structure (List.map (norm_structure_component0 env) cs0)
+  | Syntax.UnpackM e0     -> E0.UnpackM (norm_e0 env e0)
   | Syntax.VarM x0 -> begin
     match lookup_structure x0 env with
     | Some m0 -> m0
@@ -306,10 +278,9 @@ and norm_structure_component0 env = function
   | Syntax.ModM (x0, m0)              -> E0.ModM (x0, norm_structure0 env m0)
 
 and norm_structure1 env = function
-  | Syntax.Structure cs0                  -> E1.Structure (List.map (norm_structure_component1 env) cs0)
-  | Syntax.UnpackM (Syntax.ModE (m0, s0)) -> E1.UnpackM (norm_e1 env (Syntax.ModE (m0, s0)))
-  | Syntax.UnpackM _                      -> failwith "[error] only module is only allowed to appear within unpack"
-  | Syntax.VarM x0                        -> E1.VarM x0
+  | Syntax.Structure cs0  -> E1.Structure (List.map (norm_structure_component1 env) cs0)
+  | Syntax.UnpackM _      -> failwith "[error] ``unpack`` is not allowed to appear at level-1 module term"
+  | Syntax.VarM x0        -> E1.VarM x0
 and norm_structure_component1 env = function
   | Syntax.TypeM (x0, Some t0)        -> E1.TypeM (x0, Some (norm_type env t0))
   | Syntax.TypeM (x0, None)           -> E1.TypeM (x0, None)
@@ -364,10 +335,9 @@ and denorm_e0 = function
   | E0.CodE e0                        -> Syntax.CodE (denorm_e1 e0)
   | E0.RunE e0                        -> Syntax.RunE (denorm_e0 e0)
   | E0.ModE (m0, s0)                  -> Syntax.ModE (denorm_structure0 m0, denorm_signature s0)
-  | E0.ModCodE _                      -> failwith "[error] ``code of a module`` should not appear in denorm"
+  | E0.ModCodE _                      -> failwith "[error] ``module code`` should not appear in denorm"
   | E0.RunModE _                      -> failwith "[error] ``run_module`` should not appear in denorm"
   | E0.LetModE (x0, m0, e0)           -> Syntax.LetModE (x0, denorm_structure0 m0, denorm_e0 e0)
-  | E0.FunModE (x0, s0, e0)           -> Syntax.FunModE (x0, denorm_signature s0, denorm_e0 e0)
   | E0.AccE (E0.VarP x0, x1)          -> Syntax.AccE (Syntax.VarP x0, x1)
   | E0.AccE (E0.DollarP x0, x1)       -> failwith "[error] ``dollar`` should not appear in denorm"
   | E0.VarE x0                        -> Syntax.VarE x0
@@ -401,7 +371,7 @@ and denorm_e0 = function
 
 and denorm_e1 = function
   | E1.EscE e0                        -> Syntax.EscE (denorm_e0 e0)
-  | E1.ModE _                         -> failwith "[error] ``code of a module`` should not appear in denorm"
+  | E1.ModE _                         -> failwith "[error] ``module code`` should not appear in denorm"
   | E1.AccE (E1.VarP x0, x1)          -> Syntax.AccE (Syntax.VarP x0, x1)
   | E1.VarE x0                        -> Syntax.VarE x0
   | E1.IntE n0                        -> Syntax.IntE n0
@@ -442,7 +412,7 @@ and denorm_type = function
   | E.CodT t0                 -> Syntax.CodT (denorm_type t0)
   | E.EscT t0                 -> Syntax.EscT (denorm_type t0)
   | E.ModT s0                 -> Syntax.ModT (denorm_signature s0)
-  | E.ModCodT s0              -> Syntax.CodT (Syntax.ModT (denorm_signature s0))
+  | E.ModCodT s0              -> failwith "[error] ``module code`` should not appear in denorm"
 
 and denorm_structure0 = function
   | E0.UnpackM e0     -> Syntax.UnpackM (denorm_e0 e0)

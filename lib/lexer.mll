@@ -139,6 +139,12 @@ rule token = parse
     { WITH }
 | "code"
     { CODE }
+| "mcod"
+    { MCOD }
+| ".<<"
+    { LMCOD }
+| ">>."
+    { RMCOD }
 | digit+
     { INT (int_of_string @@ Lexing.lexeme lexbuf) }
 | var
