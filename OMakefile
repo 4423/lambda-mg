@@ -1,0 +1,5 @@
+.PHONY: clean
+.SUBDIRS: src lib test
+
+clean:
+	$(RM) .omakedb .omakedb.lock *.omc *~
