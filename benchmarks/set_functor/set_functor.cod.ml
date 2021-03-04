@@ -26,9 +26,5 @@ let intset_cod = makeSet .<<(module struct
     let eq = fun x -> fun y -> x = y
 end : EQ with type t = int)>>.
 ;;
-let intset = (module struct
-  type elt = $intset_cod.elt
-  type set = $intset_cod.set
-  let member = Runcode.run ($intset_cod.member)
-end: S with type elt = int and type set = int list)
+let intset = (run_module intset_cod: S with type elt = int and type set = int list)
 ;;
