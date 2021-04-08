@@ -7,24 +7,30 @@ module rec E: sig
     | StructureDec of var * E0.mod_term
     | SignatureDec of var * mod_type
 
-  and core_type =
+  and small_type =
     | VarT    of var
     | AccT    of path * var
-    | AppT    of core_type * core_type
-    | ArrT    of core_type * core_type
-    | PairT   of core_type * core_type
-    | CodT    of core_type
-    | EscT    of core_type
+    | AppST   of small_type * small_type
+    | ArrST   of small_type * small_type
+    | PairST  of small_type * small_type
+    | CodT    of small_type
+    | EscT    of small_type
+
+  and large_type =
+    | SmallT  of small_type
+    | AppLT   of large_type * large_type
+    | ArrLT   of large_type * large_type
+    | PairLT  of large_type * large_type
     | ModT    of mod_type 
     | ModCodT of mod_type
 
   and mod_type = 
     | Signature of signature 
-    | Sharing   of mod_type * var * core_type
+    | Sharing   of mod_type * var * small_type
   and signature = signature_component list
   and signature_component =
-    | TypeS     of var * core_type option
-    | ValS      of var * core_type
+    | TypeS     of var * small_type option
+    | ValS      of var * small_type
     | ModS      of var * mod_type
 
   and path =
@@ -44,7 +50,7 @@ and E0: sig
     | AccE    of path * E.var
     | LetE    of E.var * E.var list * E.var list * core_term * core_term
     | LetRecE of E.var * E.var list * E.var list * core_term * core_term
-    | FunE    of E.var * E.core_type option * core_term
+    | FunE    of E.var * E.large_type option * core_term
     | AppE    of core_term * core_term
     | IfE     of core_term * core_term * core_term
     | IntE    of int
@@ -74,7 +80,7 @@ and E0: sig
     | UnpackM   of core_term
   and structure = structure_component list
   and structure_component =
-    | TypeM     of E.var * E.core_type option
+    | TypeM     of E.var * E.small_type option
     | LetRecM   of E.var * E.var list * E.var list * core_term
     | LetM      of E.var * E.var list * E.var list * core_term
     | ModM      of E.var * mod_term
@@ -98,7 +104,7 @@ and E1: sig
     | AccE    of path * E.var
 		| LetE    of E.var * E.var list * E.var list * core_term * core_term
     | LetRecE of E.var * E.var list * E.var list * core_term * core_term
-    | FunE    of E.var * E.core_type option * core_term
+    | FunE    of E.var * E.large_type option * core_term
     | AppE    of core_term * core_term
     | IfE     of core_term * core_term * core_term
 		| IntE    of int
@@ -127,7 +133,7 @@ and E1: sig
     | Structure of structure 
   and structure = structure_component list
   and structure_component =
-    | TypeM     of E.var * E.core_type option
+    | TypeM     of E.var * E.small_type option
     | LetRecM   of E.var * E.var list * E.var list * core_term
     | LetM      of E.var * E.var list * E.var list * core_term
     | ModM      of E.var * mod_term
@@ -255,16 +261,34 @@ and norm_e1 env = function
                                              end cs0)
 
 and norm_type env = function
-  | Syntax.VarT x0                      -> E.VarT x0
-  | Syntax.AccT (Syntax.VarP x0, x1)    -> E.AccT (E.VarP x0, x1)
-  | Syntax.AccT (Syntax.DollarP x0, x1) -> E.AccT (E.DollarP x0, x1)
-  | Syntax.ArrT (t0, t1)                -> E.ArrT (norm_type env t0, norm_type env t1)
-  | Syntax.AppT (t0, t1)                -> E.AppT (norm_type env t0, norm_type env t1)
-  | Syntax.PairT (t0, t1)               -> E.PairT (norm_type env t0, norm_type env t1)
-  | Syntax.CodT t0                      -> E.CodT (norm_type env t0)
+  | Syntax.VarT x0                      -> E.SmallT (E.VarT x0)
+  | Syntax.AccT (Syntax.VarP x0, x1)    -> E.SmallT (E.AccT (E.VarP x0, x1))
+  | Syntax.AccT (Syntax.DollarP x0, x1) -> E.SmallT (E.AccT (E.DollarP x0, x1))
+  | Syntax.ArrT (t0, t1)                -> begin match norm_type env t0, norm_type env t1 with
+                                           | E.SmallT t0', E.SmallT t1' ->
+                                              E.SmallT (E.ArrST (t0', t1'))
+                                           | t0', t1' -> E.ArrLT (t0', t1')
+                                           end
+  | Syntax.AppT (t0, t1)                -> begin match norm_type env t0, norm_type env t1 with
+                                           | E.SmallT t0', E.SmallT t1' ->
+                                              E.SmallT (E.AppST (t0', t1'))
+                                           | t0', t1' -> E.AppLT (t0', t1')
+                                           end
+  | Syntax.PairT (t0, t1)               -> begin match norm_type env t0, norm_type env t1 with
+                                           | E.SmallT t0', E.SmallT t1' ->
+                                              E.SmallT (E.PairST (t0', t1'))
+                                           | t0', t1' -> E.PairLT (t0', t1')
+                                           end
+  | Syntax.CodT t0                      -> begin match norm_type env t0 with
+                                           | E.SmallT t0' -> E.SmallT (E.CodT t0')
+                                           | _ -> failwith "[error] ``code`` is not allowed to apply to large type"
+                                           end
+  | Syntax.EscT t0                      -> begin match norm_type env t0 with
+                                           | E.SmallT t0' -> E.SmallT (E.EscT t0')
+                                           | _ -> failwith "[error] ``%`` is not allowed to apply to large type"
+                                           end
   | Syntax.ModT s0                      -> E.ModT (norm_signature env s0)
   | Syntax.ModCodT s0                   -> E.ModCodT (norm_signature env s0)
-  | Syntax.EscT t0                      -> E.EscT (norm_type env t0)
 
 and norm_structure0 env = function
   | Syntax.Structure cs0  -> E0.Structure (List.map (norm_structure_component0 env) cs0)
@@ -275,7 +299,10 @@ and norm_structure0 env = function
     | None    -> failwith (Printf.sprintf "unbound module structure '%s'" x0)
   end
 and norm_structure_component0 env = function
-  | Syntax.TypeM (x0, Some t0)        -> E0.TypeM (x0, Some (norm_type env t0))
+  | Syntax.TypeM (x0, Some t0)        -> begin match norm_type env t0 with
+                                         | E.SmallT t0' -> E0.TypeM (x0, Some t0')
+                                         | _ -> failwith "[error] large-term can not appear within a module structure"
+                                         end
   | Syntax.TypeM (x0, None)           -> E0.TypeM (x0, None)
   | Syntax.LetRecM (x0, xs0, ys0, e0) -> E0.LetRecM (x0, xs0, ys0, norm_e0 env e0)
   | Syntax.LetM (x0, xs0, ys0, e0)    -> E0.LetM (x0, xs0, ys0, norm_e0 env e0)
@@ -286,7 +313,10 @@ and norm_structure1 env = function
   | Syntax.UnpackM _      -> failwith "[error] ``unpack`` is not allowed to appear at level-1 module term"
   | Syntax.VarM x0        -> E1.VarM x0
 and norm_structure_component1 env = function
-  | Syntax.TypeM (x0, Some t0)        -> E1.TypeM (x0, Some (norm_type env t0))
+  | Syntax.TypeM (x0, Some t0)        -> begin match norm_type env t0 with
+                                         | E.SmallT t0' -> E1.TypeM (x0, Some t0')
+                                         | _ -> failwith "[error] large-term can not appear within a module structure"
+                                         end
   | Syntax.TypeM (x0, None)           -> E1.TypeM (x0, None)
   | Syntax.LetRecM (x0, xs0, ys0, e0) -> E1.LetRecM (x0, xs0, ys0, norm_e1 env e0)
   | Syntax.LetM (x0, xs0, ys0, e0)    -> E1.LetM (x0, xs0, ys0, norm_e1 env e0)
@@ -294,16 +324,28 @@ and norm_structure_component1 env = function
 
 and norm_signature env = function
   | Syntax.Signature cs0        -> E.Signature (List.map (norm_signature_component env) cs0)
-  | Syntax.Sharing (s0, x0, t0) -> E.Sharing (norm_signature env s0, x0, norm_type env t0)
+  | Syntax.Sharing (s0, x0, t0) -> begin 
+      match norm_type env t0 with
+      | E.SmallT t0' -> E.Sharing (norm_signature env s0, x0, t0')
+      | _            -> failwith "[error] large-type can not appear within a sharing constraints"
+    end
   | Syntax.VarS x0 -> begin
       match lookup_signature x0 env with
       | Some s0 -> s0
       | None    -> failwith (Printf.sprintf "unbound module signature '%s'" x0)
     end
 and norm_signature_component env = function
-  | Syntax.TypeS (x0, Some t0) -> E.TypeS (x0, Some (norm_type env t0))
+  | Syntax.TypeS (x0, Some t0) -> begin
+      match norm_type env t0 with
+      | E.SmallT t0' -> E.TypeS (x0, Some t0')
+      | _            -> failwith "[error] large-type can not appear within a module signature"
+    end
   | Syntax.TypeS (x0, None) -> E.TypeS (x0, None)
-  | Syntax.ValS (x0, t0) -> E.ValS (x0, norm_type env t0)
+  | Syntax.ValS (x0, t0) -> begin
+      match norm_type env t0 with
+      | E.SmallT t0' -> E.ValS (x0, t0')
+      | _            -> failwith "[error] large-type can not appear within a module signature"
+    end
   | Syntax.ModS (x0, m0) -> E.ModS (x0, norm_signature env m0)
 
 and norm_pattern0 env = function
@@ -409,23 +451,26 @@ and denorm_e1 = function
                                          end cs0)
 
 and denorm_type = function
-  | E.VarT x0                 -> Syntax.VarT x0
-  | E.AccT (E.VarP x0, x1)    -> Syntax.AccT (Syntax.VarP x0, x1)
-  | E.AccT (E.DollarP x0, x1) -> failwith "[error] ``dollar`` should not appear in denorm"
-  | E.ArrT (t0, t1)           -> Syntax.ArrT (denorm_type t0, denorm_type t1)
-  | E.AppT (t0, t1)           -> Syntax.AppT (denorm_type t0, denorm_type t1)
-  | E.PairT (t0, t1)          -> Syntax.PairT (denorm_type t0, denorm_type t1)
-  | E.CodT t0                 -> Syntax.CodT (denorm_type t0)
-  | E.EscT t0                 -> Syntax.EscT (denorm_type t0)
-  | E.ModT s0                 -> Syntax.ModT (denorm_signature s0)
-  | E.ModCodT s0              -> failwith "[error] ``module code`` should not appear in denorm"
+  | E.SmallT (E.VarT x0)                 -> Syntax.VarT x0
+  | E.SmallT (E.AccT (E.VarP x0, x1))    -> Syntax.AccT (Syntax.VarP x0, x1)
+  | E.SmallT (E.AccT (E.DollarP x0, x1)) -> failwith "[error] ``dollar`` should not appear in denorm"
+  | E.SmallT (E.ArrST (t0, t1))          -> Syntax.ArrT (denorm_type (E.SmallT t0), denorm_type (E.SmallT t1))
+  | E.SmallT (E.AppST (t0, t1))          -> Syntax.AppT (denorm_type (E.SmallT t0), denorm_type (E.SmallT t1))
+  | E.SmallT (E.PairST (t0, t1))         -> Syntax.PairT (denorm_type (E.SmallT t0), denorm_type (E.SmallT t1))
+  | E.SmallT (E.CodT t0)                 -> Syntax.CodT (denorm_type (E.SmallT t0))
+  | E.SmallT (E.EscT t0)                 -> Syntax.EscT (denorm_type (E.SmallT t0))
+  | E.ArrLT (t0, t1)                     -> Syntax.ArrT (denorm_type t0, denorm_type t1)
+  | E.AppLT (t0, t1)                     -> Syntax.AppT (denorm_type t0, denorm_type t1)
+  | E.PairLT (t0, t1)                    -> Syntax.PairT (denorm_type t0, denorm_type t1)
+  | E.ModT s0                            -> Syntax.ModT (denorm_signature s0)
+  | E.ModCodT s0                         -> failwith "[error] ``module code`` should not appear in denorm"
 
 and denorm_structure0 = function
   | E0.UnpackM e0     -> Syntax.UnpackM (denorm_e0 e0)
   | E0.Structure cs0  -> Syntax.Structure (List.map denorm_structure_component0 cs0)
   | E0.VarM x0        -> Syntax.VarM x0
 and denorm_structure_component0 = function
-  | E0.TypeM (x0, Some t0)        -> Syntax.TypeM (x0, Some (denorm_type t0))
+  | E0.TypeM (x0, Some t0)        -> Syntax.TypeM (x0, Some (denorm_type (E.SmallT t0)))
   | E0.TypeM (x0, None)           -> Syntax.TypeM (x0, None)
   | E0.LetRecM (x0, xs0, ys0, e0) -> Syntax.LetRecM (x0, xs0, ys0, denorm_e0 e0)
   | E0.LetM (x0, xs0, ys0, e0)    -> Syntax.LetM (x0, xs0, ys0, denorm_e0 e0)
@@ -437,11 +482,11 @@ and denorm_signature = function
     let s0 = Syntax.Signature (List.map denorm_signature_component cs0) in
     toplevel_decl_list := !toplevel_decl_list @ [Syntax.SignatureDec (x0, s0)];
     Syntax.VarS x0
-  | E.Sharing (s0, x0, t0) -> Syntax.Sharing (denorm_signature s0, x0, denorm_type t0)
+  | E.Sharing (s0, x0, t0) -> Syntax.Sharing (denorm_signature s0, x0, denorm_type (E.SmallT t0))
 and denorm_signature_component = function
-  | E.TypeS (x0, Some t0) -> Syntax.TypeS (x0, Some (denorm_type t0))
+  | E.TypeS (x0, Some t0) -> Syntax.TypeS (x0, Some (denorm_type (E.SmallT t0)))
   | E.TypeS (x0, None)    -> Syntax.TypeS (x0, None)
-  | E.ValS (x0, t0)       -> Syntax.ValS (x0, denorm_type t0)
+  | E.ValS (x0, t0)       -> Syntax.ValS (x0, denorm_type (E.SmallT t0))
   | E.ModS (x0, m0)       -> Syntax.ModS (x0, denorm_signature m0)
 
 and denorm_pattern0 = function

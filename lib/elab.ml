@@ -24,7 +24,7 @@ and term0 env d = function
   | E0.LetE (x0, xs0, ys0, e0, e1)    -> E0.LetE (x0, xs0, ys0, term0 env d e0, term0 env d e1)
   | E0.LetRecE (x0, xs0, ys0, e0, e1) -> E0.LetRecE (x0, xs0, ys0, term0 env d e0, term0 env d e1)
   | E0.LetModE (x0, m0, e0)           -> E0.LetModE (x0, structure0 env d m0, term0 env d e0)
-  | E0.FunE (x0, Some t0, e0)         -> E0.FunE (x0, Some (type0 env t0), term0 env d e0)
+  | E0.FunE (x0, Some t0, e0)         -> E0.FunE (x0, Some (large_type0 env t0), term0 env d e0)
   | E0.FunE (x0, None, e0)            -> E0.FunE (x0, None, term0 env d e0)
   | E0.AppE (e0, e1)                  -> E0.AppE (term0 env d e0, term0 env d e1)
   | E0.IfE (e0, e1, e2)               -> E0.IfE (term0 env d e0, term0 env d e1, term0 env d e2)
@@ -77,7 +77,7 @@ and term1 env d = function
   | E1.BoolE b0                       -> E1.BoolE b0
   | E1.LetE (x0, xs0, ys0, e0, e1)    -> E1.LetE (x0, xs0, ys0, term1 env d e0, term1 env d e1)
   | E1.LetRecE (x0, xs0, ys0, e0, e1) -> E1.LetRecE (x0, xs0, ys0, term1 env d e0, term1 env d e1)
-  | E1.FunE (x0, Some t0, e0)         -> E1.FunE (x0, Some (type1 env t0), term1 env d e0)
+  | E1.FunE (x0, Some t0, e0)         -> E1.FunE (x0, Some (large_type1 env t0), term1 env d e0)
   | E1.FunE (x0, None, e0)            -> E1.FunE (x0, None, term1 env d e0)
   | E1.AppE (e0, e1)                  -> E1.AppE (term1 env d e0, term1 env d e1)
   | E1.IfE (e0, e1, e2)               -> E1.IfE (term1 env d e0, term1 env d e1, term1 env d e2)
@@ -103,46 +103,58 @@ and term1 env d = function
                                            fun (pattern, body) -> (pattern, term1 env d body)
                                          end cs0)
 
-and type0 env = function
+and small_type0 env = function
   | E.VarT x0                 -> E.VarT x0
   | E.AccT (E.VarP x0, x1)    -> E.AccT (E.VarP x0, x1)
   | E.AccT (E.DollarP x0, x1) -> E.AccT (E.VarP (List.assoc x0 env), x1)
-  | E.ArrT (t0, t1)           -> E.ArrT (type0 env t0, type0 env t1)
-  | E.AppT (t0, t1)           -> E.AppT (type0 env t0, type0 env t1)
-  | E.PairT (t0, t1)          -> E.PairT (type0 env t0, type0 env t1)
-  | E.CodT t0                 -> E.CodT (type1 env t0)
-  | E.ModT s0                 -> E.ModT (signature0 env s0)
-  | E.ModCodT s0              -> E.ModT (signature1 env s0)
+  | E.ArrST (t0, t1)          -> E.ArrST (small_type0 env t0, small_type0 env t1)
+  | E.AppST (t0, t1)          -> E.AppST (small_type0 env t0, small_type0 env t1)
+  | E.PairST (t0, t1)         -> E.PairST (small_type0 env t0, small_type0 env t1)
+  | E.CodT t0                 -> E.CodT (small_type1 env t0)
   | E.EscT _                  -> failwith "[error] ``<esc>`` is not allowed to appear at level-0 type"
 
-and type1 env = function
+and small_type1 env = function
   | E.VarT x0                 -> E.VarT x0
   | E.AccT (E.VarP x0, x1)    -> E.AccT (E.VarP x0, x1)
   | E.AccT (E.DollarP x0, x1) -> E.AccT (E.VarP (List.assoc x0 env), x1)
-  | E.ArrT (t0, t1)           -> E.ArrT (type1 env t0, type1 env t1)
-  | E.AppT (t0, t1)           -> E.AppT (type1 env t0, type1 env t1)
-  | E.PairT (t0, t1)          -> E.PairT (type1 env t0, type1 env t1)
-  | E.CodT _                  -> failwith "[error] ``code`` is not allowed to appear at level-1 type"
+  | E.ArrST (t0, t1)          -> E.ArrST (small_type1 env t0, small_type1 env t1)
+  | E.AppST (t0, t1)          -> E.AppST (small_type1 env t0, small_type1 env t1)
+  | E.PairST (t0, t1)         -> E.PairST (small_type1 env t0, small_type1 env t1)
+  | E.CodT _                  -> failwith "[error] ``<code>`` is not allowed to appear at level-1 type"
+  | E.EscT t0                 -> E.EscT (small_type0 env t0)
+
+and large_type0 env = function
+  | E.SmallT t0               -> E.SmallT (small_type0 env t0)
+  | E.ArrLT (t0, t1)          -> E.ArrLT (large_type0 env t0, large_type0 env t1)
+  | E.AppLT (t0, t1)          -> E.AppLT (large_type0 env t0, large_type0 env t1)
+  | E.PairLT (t0, t1)         -> E.PairLT (large_type0 env t0, large_type0 env t1)
+  | E.ModT s0                 -> E.ModT (signature0 env s0)
+  | E.ModCodT s0              -> E.ModT (signature1 env s0)
+
+and large_type1 env = function
+  | E.SmallT t0               -> E.SmallT (small_type1 env t0)
+  | E.ArrLT (t0, t1)          -> E.ArrLT (large_type1 env t0, large_type1 env t1)
+  | E.AppLT (t0, t1)          -> E.AppLT (large_type1 env t0, large_type1 env t1)
+  | E.PairLT (t0, t1)         -> E.PairLT (large_type1 env t0, large_type1 env t1)
   | E.ModT _                  -> failwith "[error] ``mod`` is not allowed to appear at level-1 type"
   | E.ModCodT _               -> failwith "[error] ``code`` is not allowed to appear at level-1 type"
-  | E.EscT t0                 -> E.EscT (type0 env t0)
 
 and signature0 env = function
   | E.Signature cs0         -> E.Signature (List.map (signature_component0 env) cs0)
-  | E.Sharing (s0, x0, t0)  -> E.Sharing (signature0 env s0, x0, type0 env t0)
+  | E.Sharing (s0, x0, t0)  -> E.Sharing (signature0 env s0, x0, small_type0 env t0)
 and signature_component0 env = function
-  | E.TypeS (x0, Some t0)   -> E.TypeS (x0, Some (type0 env t0))
+  | E.TypeS (x0, Some t0)   -> E.TypeS (x0, Some (small_type0 env t0))
   | E.TypeS (x0, None)      -> E.TypeS (x0, None)
-  | E.ValS (x0, t0)         -> E.ValS (x0, type0 env t0)
+  | E.ValS (x0, t0)         -> E.ValS (x0, small_type0 env t0)
   | E.ModS (x0, m0)         -> E.ModS (x0, signature0 env m0)
 
 and signature1 env = function
   | E.Signature cs0         -> E.Signature (List.map (signature_component1 env) cs0)
-  | E.Sharing (s0, x0, t0)  -> E.Sharing (signature1 env s0, x0, type1 env t0)
+  | E.Sharing (s0, x0, t0)  -> E.Sharing (signature1 env s0, x0, small_type1 env t0)
 and signature_component1 env = function
-  | E.TypeS (x0, Some t0)   -> E.TypeS (x0, Some (type1 env t0))
+  | E.TypeS (x0, Some t0)   -> E.TypeS (x0, Some (small_type1 env t0))
   | E.TypeS (x0, None)      -> E.TypeS (x0, None)
-  | E.ValS (x0, t0)         -> E.ValS (x0, E.CodT (type1 env t0))
+  | E.ValS (x0, t0)         -> E.ValS (x0, E.CodT (small_type1 env t0))
   | E.ModS (x0, m0)         -> E.ModS (x0, signature1 env m0)
 
 and structure0 env d = function
@@ -150,7 +162,7 @@ and structure0 env d = function
   | E0.UnpackM e0     -> E0.UnpackM (term0 env d e0)
   | E0.VarM x0        -> E0.VarM x0
 and structure_component0 env d = function
-  | E0.TypeM (x0, Some t0)        -> E0.TypeM (x0, Some (type0 env t0))
+  | E0.TypeM (x0, Some t0)        -> E0.TypeM (x0, Some (small_type0 env t0))
   | E0.TypeM (x0, None)           -> E0.TypeM (x0, None)
   | E0.LetRecM (x0, xs0, ys0, e0) -> E0.LetRecM (x0, xs0, ys0, term0 env d e0)
   | E0.LetM (x0, xs0, ys0, e0)    -> E0.LetM (x0, xs0, ys0, term0 env d e0)
@@ -167,7 +179,7 @@ and structure1 env d = function
       E0.Structure (unpacked_mods @ List.rev cs0')
   | E1.VarM x0                    -> E0.VarM x0
 and structure_component1 (d, env, cs) = function
-  | E1.TypeM (x0, Some t0)        -> (d, env, E0.TypeM (x0, Some (type1 env t0)) :: cs)
+  | E1.TypeM (x0, Some t0)        -> (d, env, E0.TypeM (x0, Some (small_type1 env t0)) :: cs)
   | E1.TypeM (x0, None)           -> (d, env, E0.TypeM (x0, None) :: cs)
   | E1.LetRecM (x0, xs0, ys0, e0) -> let e1 = term1 env d (E1.LetRecE (x0, xs0, ys0, e0, E1.VarE x0)) in
                                      (x0::d, env, E0.LetM (x0, [], [], insert_genlet (E0.CodE e1)) :: cs)
@@ -187,8 +199,8 @@ and dollar_structure_component = function
   | _                             -> Set.empty
 and dollar_core_type = function
   | E.AccT (E.DollarP x0, _)  -> Set.singleton x0
-  | E.ArrT (t0, t1) 
-  | E.PairT (t0, t1)          -> Set.union (dollar_core_type t0) (dollar_core_type t1)
+  | E.ArrST (t0, t1) 
+  | E.PairST (t0, t1)         -> Set.union (dollar_core_type t0) (dollar_core_type t1)
   | E.CodT t0 
   | E.EscT t0                 -> dollar_core_type t0
   | _                         -> Set.empty
