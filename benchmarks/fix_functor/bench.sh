@@ -28,5 +28,4 @@ do
     echo '' >> $RESULT_FILE
     # clean
     make clean
-    rm $OUT_FILE
 done
