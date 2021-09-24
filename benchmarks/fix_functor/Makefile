@@ -8,6 +8,8 @@ codegen: fix_functor.gen.ml fix_functor.opt.ml bench.ml
 	metaocamlc -c fix_functor.opt.ml -o fix_functor
 	metaocamlc -c bench.ml -o bench
 	metaocamlc fix_functor_gen.cmo fix_functor.cmo bench.cmo -o bench.out
+	metaocamlc -c print_code.ml -o print_code
+	metaocamlc fix_functor_gen.cmo fix_functor.cmo print_code.cmo -o print_code.out
 
 clean:
 	rm -f *.mli *.cmo *.cmi *.cmx *.a *.o *.out
