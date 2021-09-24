@@ -38,10 +38,10 @@ module SuppressAddZeroOrMulZeroPE (S: SYM with type obs_t = int)
   let int = fun n1 -> (S.int n1, n1 = 0)
   let add = fun n1 -> fun n2 ->
     match n1, n2 with
-    | (n1, true), (n2, true) ->
-      (S.int 0, true)
-    | (n1, _), (n2, _) ->
-      (S.add n1 n2, false)
+      (x1, b1), (x2, b2) -> if (b1 && b2) then (S.int 0, true)
+                            else if b1 then (x2, false)
+                            else if b2 then (x1, false)
+                            else (S.add x1 x2, false)
 
   let sub = fun n1 -> fun n2 ->
     match n1, n2 with
@@ -53,7 +53,7 @@ module SuppressAddZeroOrMulZeroPE (S: SYM with type obs_t = int)
 
   let div = fun n1 -> fun n2 ->
     match (n1, n2) with
-      (n1, _), (n2, _) -> (S.div n1 n2, false)
+      (x1, b1), (x2, _) -> if b1 then (S.int 0, true) else (S.div x1 x2, false)
 
   let observe = fun f -> 
     match f 0 with
