@@ -11,6 +11,7 @@ module type SYM = sig
   type obs_t
   type unit_t
   val int: int -> int_t
+  val var: int -> int_t
   val add: int_t -> int_t -> int_t
   val sub: int_t -> int_t -> int_t
   val mul: int_t -> int_t -> int_t
@@ -23,6 +24,7 @@ module Arith: (SYM with type obs_t = int) = struct
   type obs_t = int
   type unit_t = int
   let int = fun n1 -> n1
+  let var = fun _ -> 1
   let add = fun n1 -> fun n2 -> n1 + n2
   let sub = fun n1 -> fun n2 -> n1 - n2
   let mul = fun n1 -> fun n2 -> n1 * n2
@@ -36,25 +38,22 @@ module SuppressAddZeroOrMulZeroPE (S: SYM with type obs_t = int)
   type obs_t = int
   type unit_t = int
   let int = fun n1 -> (S.int n1, n1 = 0)
+  let var = fun n1 -> (S.var n1, false)
   let add = fun n1 -> fun n2 ->
     match n1, n2 with
       (x1, b1), (x2, b2) -> if (b1 && b2) then (S.int 0, true)
                             else if b1 then (x2, false)
                             else if b2 then (x1, false)
                             else (S.add x1 x2, false)
-
   let sub = fun n1 -> fun n2 ->
     match n1, n2 with
       (n1, _), (n2, _) -> if n1 = n2 then (S.int 0, true) else (S.sub n1 n2, false)
-
   let mul = fun n1 -> fun n2 ->
     match (n1, n2) with
       (n1, b1), (n2, b2) -> if (b1 || b2) then (S.int 0, true) else (S.mul n1 n2, false)
-
   let div = fun n1 -> fun n2 ->
     match (n1, n2) with
       (x1, b1), (x2, _) -> if b1 then (S.int 0, true) else (S.div x1 x2, false)
-
   let observe = fun f -> 
     match f 0 with
     | (n, _) -> S.observe (fun _ -> n)
@@ -71,6 +70,9 @@ module rec Fix: (SYM with type obs_t = int) = struct
   let int n0 =
     { again = (fun _ -> TFix.int n0);
       last  = (fun _ -> T.int n0) }
+  let var n0 =
+    { again = (fun _ -> TFix.var n0);
+      last  = (fun _ -> T.var n0) }
   let add e0 e1 =
     { again = (fun _ -> TFix.add (e0.again 0) (e1.again 0));
       last  = (fun _ -> T.add (e0.last 0) (e1.last 0)) }

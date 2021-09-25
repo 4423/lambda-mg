@@ -11,6 +11,7 @@ module Fix = struct
   type obs_t = F.obs_t
   type unit_t = F.unit_t
   let int = Runcode.run F.int
+  let var = Runcode.run F.var
   let add = Runcode.run F.add
   let sub = Runcode.run F.sub
   let mul = Runcode.run F.add
